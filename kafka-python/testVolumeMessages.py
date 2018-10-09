@@ -1,11 +1,19 @@
 from kafka import KafkaProducer
 from kafka.errors import KafkaError, KafkaTimeoutError, NoBrokersAvailable
 import json
-import datetime
 import time
 
+msg_count = 100000
+msg_size = 100
+msg_payload = ('kafkatest' * 20).encode()[:msg_size]
+
 kf_prod = KafkaProducer(value_serializer=lambda v: json.dumps(v).encode('utf-8'),
-                                bootstrap_servers='172.23.0.14:9092')
+                                bootstrap_servers="172.23.0.8:9092")
+
+def calculate_thoughput(timing, n_messages=1000000, msg_size=100):
+    print("Processed {0} messsages in {1:.2f} seconds".format(n_messages, timing))
+    print("{0:.2f} MB/s".format((msg_size * n_messages) / timing / (1024*1024)))
+    print("{0:.2f} Msgs/s".format(n_messages / timing))
 
 
 def send_notification(event):
@@ -14,7 +22,7 @@ def send_notification(event):
         return
 
     try:
-        topic = '7db62042-c7de-45ef-b8c2-29e001067bdd'
+        topic = 'pykafka-test-topic'
         kf_prod.send(topic, event)
         kf_prod.flush()
     except KafkaTimeoutError:
@@ -26,17 +34,13 @@ def testVolumeMessages():
         print('-'*100)
         print('test number: {}'.format(y))
         try:
-            start = datetime.datetime.now()
-            print('start: {}'.format(start))
+            start = time.time()
             x = 1
-            while x <= 3000:
-                send_notification({"type": "performance", 
-                "msg_number": x,
-                "time": time.time()})
+            while x <= msg_count:
+                send_notification(msg_payload)
                 x += 1
-            finish = datetime.datetime.now()
-            print('finish: {}'.format(finish))
-            print('Total: {}'.format(finish - start))
+            finish = time.time()
+            calculate_thoughput((finish - start), msg_count, msg_size)
             time.sleep(5)
             # execute the command
         except Exception, e:
